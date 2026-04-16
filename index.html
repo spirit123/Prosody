@@ -173,6 +173,7 @@ async function blobToWavBase64(blob) {
   let binary = '';
   for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary);
+}
 
 // --- App state ---
 let apiKey = '';
