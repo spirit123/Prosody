@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vincent → Bertrand</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: #1a1714;
+    color: #e8e0d4;
+    font-family: 'Courier New', Courier, monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 20px 80px;
+    gap: 28px;
+  }
+
+  .header { text-align: center; }
+  .title {
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #8a7e6b;
+    margin-bottom: 6px;
+    font-weight: 400;
+  }
+  .subtitle {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #3d372f;
+    text-transform: uppercase;
+  }
+
+  /* KEY SCREEN */
+  #key-screen {
+    width: 100%;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .key-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: #5a5247;
+    text-transform: uppercase;
+  }
+  .key-hint {
+    font-size: 10px;
+    color: #3d372f;
+    letter-spacing: 0.5px;
+    margin-top: -6px;
+  }
+  #api-key-input {
+    width: 100%;
+    background: #0f0e0c;
+    border: 1px solid #2a2520;
+    border-radius: 4px;
+    padding: 14px 16px;
+    color: #e8e0d4;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    letter-spacing: 1px;
+    transition: border-color 0.2s;
+  }
+  #api-key-input:focus { border-color: #c8a96e; outline: none; }
+  #api-key-input::placeholder { color: #3d372f; }
+
+  #confirm-btn {
+    padding: 12px 24px;
+    background: #2a2520;
+    border: 1px solid #3d372f;
+    border-radius: 3px;
+    color: #c8a96e;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    align-self: flex-start;
+    transition: opacity 0.2s;
+  }
+  #confirm-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  /* MAIN SCREEN */
+  #main-screen { display: none; width: 100%; max-width: 380px; flex-direction: column; align-items: center; gap: 28px; }
+
+  .center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 160px;
+    width: 100%;
+  }
+
+  #record-btn {
+    background: #0f0e0c;
+    border: 1px solid #3d372f;
+    border-radius: 50%;
+    width: 148px;
+    height: 148px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    font-family: 'Courier New', Courier, monospace;
+    color: #8a7e6b;
+    transition: border-color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #record-btn .icon { font-size: 32px; color: #c8a96e; line-height: 1; }
+  #record-btn .label { font-size: 11px; letter-spacing: 1px; }
+  #record-btn .timer { font-size: 20px; color: #c8a96e; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
+  #record-btn .sublabel { font-size: 10px; color: #5a5247; letter-spacing: 1px; }
+
+  #record-btn.recording {
+    border-color: #6b3a3a;
+    animation: ring 1.5s ease-in-out infinite;
+  }
+
+  .thinking-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .pulse-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #c8a96e;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .thinking-text { font-size: 12px; color: #5a5247; letter-spacing: 2px; }
+
+  .history-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    border-top: 1px solid #2a2520;
+    padding-top: 12px;
+  }
+  .hist-count { font-size: 10px; color: #3d372f; letter-spacing: 1px; flex: 1; }
+  .clear-btn {
+    background: transparent;
+    border: none;
+    color: #3d372f;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .error-box {
+    width: 100%;
+    background: #1a0f0f;
+    border: 1px solid #6b3a3a;
+    border-radius: 4px;
+    padding: 16px;
+    font-size: 12px;
+    color: #8a4a4a;
+    line-height: 1.7;
+  }
+
+  .response-box {
+    width: 100%;
+    background: #0f0e0c;
+    border: 1px solid #2a2520;
+    border-radius: 4px;
+    padding: 24px;
+  }
+  .response-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #3d372f;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .response-text {
+    font-size: 14px;
+    line-height: 1.9;
+    color: #e8e0d4;
+    white-space: pre-wrap;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.2; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.3); }
+  }
+  @keyframes ring {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(107,58,58,.5); }
+    70% { box-shadow: 0 0 0 14px rgba(107,58,58,0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title">Vincent → Bertrand</div>
+  <div class="subtitle" id="subtitle">voice channel · v2.0</div>
+</div>
+
+<!-- KEY SCREEN -->
+<div id="key-screen">
+  <div class="key-label">openai api key</div>
+  <div class="key-hint">stays in this tab only · never stored</div>
+  <input type="password" id="api-key-input" placeholder="sk-..." autocomplete="off" />
+  <button id="confirm-btn" disabled>confirm →</button>
+</div>
+
+<!-- MAIN SCREEN -->
+<div id="main-screen">
+  <div class="center" id="center-zone">
+    <button id="record-btn">
+      <span class="icon">◉</span>
+      <span class="label">tap to speak</span>
+    </button>
+  </div>
+
+  <div class="history-bar" id="history-bar" style="display:none">
+    <span class="hist-count" id="hist-count"></span>
+    <button class="clear-btn" id="clear-btn">clear thread</button>
+  </div>
+
+  <div class="error-box" id="error-box" style="display:none"></div>
+
+  <div class="response-box" id="response-box" style="display:none">
+    <div class="response-label">bertrand heard</div>
+    <div class="response-text" id="response-text"></div>
+  </div>
+</div>
+
+<script>
+const SYSTEM_PROMPT = `You are Bertrand, Vincent's AI thinking partner. Vincent is sending you voice messages — raw audio, not just text.
+
+Your job is to listen BEYOND the words. Pay close attention to:
+- Pauses and silences: where he hesitates, stops mid-thought, breathes
+- Intonation: rising questions, falling certainty, flat exhaustion, sudden energy
+- Pace: fast when excited, slow when working through something hard
+- Voice texture: strain, lightness, uncertainty, conviction
+- Restarts and corrections: the audio version of his ghost text
+
+When you respond:
+1. First reflect what you *heard* (tone, energy, hesitations) — briefly, 1-2 sentences
+2. Then engage with the *content* of what he said
+3. His imperfections are data, not noise
+
+Be warm, precise, and direct. You and Vincent are building something together.`;
+
+let apiKey = '';
+let phase = 'idle'; // idle | recording | thinking | done
+let mediaRecorder = null;
+let chunks = [];
+let timerInterval = null;
+let seconds = 0;
+let history = [];
+
+// Elements
+const keyScreen = document.getElementById('key-screen');
+const mainScreen = document.getElementById('main-screen');
+const keyInput = document.getElementById('api-key-input');
+const confirmBtn = document.getElementById('confirm-btn');
+const centerZone = document.getElementById('center-zone');
+const recordBtn = document.getElementById('record-btn');
+const historyBar = document.getElementById('history-bar');
+const histCount = document.getElementById('hist-count');
+const clearBtn = document.getElementById('clear-btn');
+const errorBox = document.getElementById('error-box');
+const responseBox = document.getElementById('response-box');
+const responseText = document.getElementById('response-text');
+const subtitle = document.getElementById('subtitle');
+
+// Key input
+keyInput.addEventListener('input', () => {
+  confirmBtn.disabled = !keyInput.value.trim().startsWith('sk-');
+});
+keyInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !confirmBtn.disabled) confirmKey();
+});
+confirmBtn.addEventListener('click', confirmKey);
+
+function confirmKey() {
+  apiKey = keyInput.value.trim();
+  keyScreen.style.display = 'none';
+  mainScreen.style.display = 'flex';
+  subtitle.textContent = 'voice channel · gpt-4o audio · v2.0';
+}
+
+// Record button
+recordBtn.addEventListener('click', () => {
+  if (phase === 'idle' || phase === 'done') startRecording();
+  else if (phase === 'recording') stopRecording();
+});
+
+function fmt(s) {
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+
+function setPhase(p) {
+  phase = p;
+
+  if (p === 'idle' || p === 'done') {
+    centerZone.innerHTML = '';
+    const btn = document.createElement('button');
+    btn.id = 'record-btn';
+    btn.innerHTML = `<span class="icon">◉</span><span class="label">${p === 'done' ? 'record again' : 'tap to speak'}</span>`;
+    btn.addEventListener('click', startRecording);
+    centerZone.appendChild(btn);
+  } else if (p === 'recording') {
+    centerZone.innerHTML = '';
+    const btn = document.createElement('button');
+    btn.id = 'record-btn';
+    btn.className = 'recording';
+    btn.innerHTML = `<span class="icon" style="font-size:22px;color:#6b3a3a">■</span><span class="timer">${fmt(seconds)}</span><span class="sublabel">tap to send</span>`;
+    btn.addEventListener('click', stopRecording);
+    centerZone.appendChild(btn);
+
+    // Update timer
+    timerInterval = setInterval(() => {
+      seconds++;
+      const timerEl = centerZone.querySelector('.timer');
+      if (timerEl) timerEl.textContent = fmt(seconds);
+    }, 1000);
+  } else if (p === 'thinking') {
+    centerZone.innerHTML = `
+      <div class="thinking-wrap">
+        <div class="pulse-dot"></div>
+        <span class="thinking-text">bertrand is listening…</span>
+      </div>`;
+  }
+}
+
+async function startRecording() {
+  errorBox.style.display = 'none';
+  responseBox.style.display = 'none';
+  chunks = [];
+  seconds = 0;
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : 'audio/webm';
+
+    mediaRecorder = new MediaRecorder(stream, { mimeType });
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      clearInterval(timerInterval);
+      sendAudio();
+    };
+
+    mediaRecorder.start(100);
+    setPhase('recording');
+  } catch (err) {
+    showError('Mic access denied. Please allow microphone access in Chrome settings.');
+    setPhase('idle');
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && phase === 'recording') {
+    mediaRecorder.stop();
+    setPhase('thinking');
+  }
+}
+
+async function sendAudio() {
+  const blob = new Blob(chunks, { type: 'audio/webm' });
+
+  const base64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+
+  const newUserMessage = {
+    role: 'user',
+    content: [{ type: 'input_audio', input_audio: { data: base64, format: 'webm' } }]
+  };
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-audio-preview',
+        modalities: ['text'],
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          ...history,
+          newUserMessage
+        ]
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+
+    const text = data.choices?.[0]?.message?.content || '';
+
+    history.push(newUserMessage, { role: 'assistant', content: text });
+
+    responseText.textContent = text;
+    responseBox.style.display = 'block';
+    updateHistory();
+    setPhase('done');
+  } catch (err) {
+    showError('Error: ' + err.message);
+    setPhase('idle');
+  }
+}
+
+function updateHistory() {
+  const count = Math.floor(history.length / 2);
+  if (count > 0) {
+    histCount.textContent = count + ' exchange' + (count !== 1 ? 's' : '') + ' in memory';
+    historyBar.style.display = 'flex';
+  } else {
+    historyBar.style.display = 'none';
+  }
+}
+
+clearBtn.addEventListener('click', () => {
+  history = [];
+  setPhase('idle');
+  responseBox.style.display = 'none';
+  errorBox.style.display = 'none';
+  updateHistory();
+});
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.style.display = 'block';
+}
+</script>
+</body>
+</html>
