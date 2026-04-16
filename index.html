@@ -173,7 +173,6 @@ async function blobToWavBase64(blob) {
   let binary = '';
   for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary);
-}
 
 // --- App state ---
 let apiKey = '';
@@ -210,6 +209,7 @@ function confirmKey() {
   keyScreen.style.display = 'none';
   mainScreen.style.display = 'flex';
   subtitle.textContent = 'voice channel · gpt-4o audio · v2.1';
+   setPhase('idle');
 }
 
 function fmt(s) {
