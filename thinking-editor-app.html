@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Thinking Editor</title>
+<style>
+  :root {
+    --bg:       #1a1714;
+    --bg-deep:  #0f0e0c;
+    --bg-panel: #0a0908;
+    --border:   #2a2520;
+    --border2:  #3d372f;
+    --text:     #e8e0d4;
+    --muted:    #8a7e6b;
+    --dim:      #5a5247;
+    --ghost:    #6b3a3a;
+    --voice:    #3a5a6b;
+    --amber:    #c8a96e;
+    --red:      #e88080;
+    --green:    #3a6b4a;
+    --font:     'Courier New', Courier, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    overflow-x: hidden;
+  }
+
+  .hidden { display: none !important; }
+
+  /* ── LOCK SCREEN ─────────────────────────────────────────── */
+  #lock-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 10000;
+    padding: 20px;
+  }
+  .lock-box {
+    max-width: 400px; width: 100%;
+    text-align: center;
+  }
+  .lock-logo {
+    font-size: 11px; letter-spacing: 5px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 8px;
+  }
+  .lock-version {
+    font-size: 10px; color: var(--dim); letter-spacing: 2px;
+    margin-bottom: 40px;
+  }
+  .lock-title {
+    font-size: 13px; color: var(--text); margin-bottom: 24px;
+    letter-spacing: 1px;
+  }
+  .lock-input {
+    width: 100%; background: var(--bg-deep); border: 1px solid var(--border2);
+    border-radius: 3px; padding: 14px; color: var(--amber);
+    font-family: var(--font); font-size: 14px; letter-spacing: 2px;
+    outline: none; text-align: center; margin-bottom: 10px;
+  }
+  .lock-input:focus { border-color: var(--amber); }
+  .lock-btn {
+    width: 100%; padding: 12px; background: var(--border);
+    border: 1px solid var(--border2); border-radius: 3px;
+    color: var(--amber); font-family: var(--font); font-size: 12px;
+    letter-spacing: 2px; cursor: pointer; margin-top: 8px;
+  }
+  .lock-btn:hover:not(:disabled) { background: var(--border2); }
+  .lock-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .lock-hint {
+    font-size: 11px; color: var(--dim); line-height: 1.8;
+    margin-top: 20px;
+  }
+  .lock-err {
+    color: var(--red); font-size: 11px; margin-top: 10px;
+    min-height: 14px; letter-spacing: 0.5px;
+  }
+  .lock-nuke {
+    font-size: 10px; color: var(--ghost); letter-spacing: 1px;
+    margin-top: 30px; cursor: pointer; text-decoration: underline dotted;
+  }
+  .lock-nuke:hover { color: var(--red); }
+
+  /* ── APP SHELL ─────────────────────────────────────────── */
+  #app {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+
+  header {
+    width: 100%; max-width: 720px;
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 12px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .brand {
+    font-size: 10px; letter-spacing: 4px; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .brand .v { font-size: 9px; color: var(--dim); margin-left: 8px; }
+
+  nav.tabs {
+    display: flex; gap: 4px; margin-left: auto;
+  }
+  .tab {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--dim); padding: 6px 12px; cursor: pointer;
+    background: transparent; border: 1px solid transparent;
+    border-radius: 3px; font-family: var(--font);
+  }
+  .tab:hover { color: var(--muted); }
+  .tab.active {
+    color: var(--amber); border-color: var(--border2);
+    background: var(--bg-deep);
+  }
+
+  main {
+    width: 100%; max-width: 720px;
+    flex: 1;
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── EDITOR TAB ─────────────────────────────────────────── */
+  .hint {
+    font-size: 11px; color: var(--dim);
+    display: flex; gap: 6px; flex-wrap: wrap;
+    align-items: center; justify-content: center;
+    margin-bottom: 16px;
+  }
+  kbd {
+    color: var(--amber); border: 1px solid var(--border2);
+    border-radius: 3px; padding: 1px 6px;
+    font-size: 11px; font-family: var(--font);
+  }
+  .sep { color: var(--border2); }
+
+  #main-textarea {
+    width: 100%; min-height: 280px;
+    background: var(--bg-deep); border: 1px solid var(--border);
+    border-radius: 4px 4px 0 0; padding: 20px;
+    color: var(--text); font-family: var(--font);
+    font-size: 15px; line-height: 1.8;
+    outline: none; resize: vertical; caret-color: var(--amber);
+    display: block;
+  }
+  #main-textarea:focus { border-color: var(--border2); }
+  #main-textarea::placeholder { color: var(--border2); }
+
+  .status-bar {
+    background: var(--bg-deep); border: 1px solid var(--border);
+    border-top: none; border-radius: 0 0 4px 4px;
+    padding: 6px 16px; min-height: 26px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10px; letter-spacing: 1px;
+  }
+  .ghost-count { color: var(--ghost); }
+  .voice-count { color: var(--voice); }
+  .draft-state { color: var(--dim); }
+  .status-bar .spacer { flex: 1; }
+
+  .voice-strip {
+    margin-top: 8px; padding: 8px 12px;
+    background: var(--bg-deep); border: 1px solid var(--border);
+    border-radius: 3px;
+    display: flex; gap: 10px; align-items: center;
+  }
+  .btn-rec {
+    padding: 6px 14px; background: transparent;
+    border: 1px solid var(--border2); border-radius: 3px;
+    color: var(--muted); font-family: var(--font);
+    font-size: 11px; letter-spacing: 1px;
+    white-space: nowrap; min-width: 72px; text-align: center;
+    cursor: pointer;
+  }
+  .btn-rec:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-rec.recording {
+    color: var(--red); border-color: var(--ghost);
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .thresh-row {
+    display: flex; align-items: center; gap: 6px;
+    flex: 0 0 auto;
+  }
+  .thresh-label { font-size: 10px; color: var(--border2); white-space: nowrap; }
+  .thresh-val { font-size: 10px; color: var(--dim); min-width: 40px; text-align: right; }
+
+  input[type=range] {
+    -webkit-appearance: none; height: 2px; min-width: 80px;
+    background: var(--border); border-radius: 1px; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 10px; height: 10px;
+    border-radius: 50%; background: var(--amber); cursor: pointer;
+  }
+
+  .voice-err {
+    margin-top: 6px; font-size: 11px; color: var(--red);
+    padding: 0 4px;
+  }
+  .voice-err.hidden { display: none; }
+
+  .controls {
+    display: flex; gap: 8px; margin-top: 12px; align-items: center;
+  }
+  .btn-primary {
+    padding: 10px 20px; background: var(--border);
+    border: 1px solid var(--border2); border-radius: 3px;
+    color: var(--amber); font-family: var(--font);
+    font-size: 13px; letter-spacing: 1px; cursor: pointer;
+  }
+  .btn-primary:hover { background: var(--border2); }
+  .btn {
+    padding: 10px 20px; background: transparent;
+    border: 1px solid var(--border); border-radius: 3px;
+    color: var(--muted); font-family: var(--font);
+    font-size: 13px; letter-spacing: 1px; cursor: pointer;
+  }
+  .btn:hover { color: var(--text); }
+
+  .debug-toggle {
+    margin-left: auto; display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--dim); letter-spacing: 1px;
+    cursor: pointer; user-select: none;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border); border: 1px solid var(--border2);
+  }
+  .dot.on { background: #c8a96e55; border-color: var(--amber); }
+
+  .output-section {
+    margin-top: 24px;
+  }
+  .output-label {
+    font-size: 11px; letter-spacing: 1px; color: var(--dim);
+    margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .output-ta {
+    width: 100%; min-height: 120px;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: 4px; padding: 16px;
+    color: var(--muted); font-family: var(--font);
+    font-size: 13px; line-height: 1.7;
+    outline: none; resize: vertical; cursor: text;
+  }
+
+  /* ── SESSIONS TAB ─────────────────────────────────────────── */
+  .panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px;
+  }
+  .panel-title {
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .panel-sub {
+    font-size: 10px; color: var(--dim); letter-spacing: 0.5px;
+  }
+  .search-bar {
+    width: 100%; background: var(--bg-deep); border: 1px solid var(--border);
+    border-radius: 3px; padding: 10px 14px; color: var(--text);
+    font-family: var(--font); font-size: 12px;
+    outline: none; margin-bottom: 12px;
+  }
+  .search-bar:focus { border-color: var(--border2); }
+  .search-bar::placeholder { color: var(--border2); }
+
+  .list-empty {
+    padding: 40px 20px; text-align: center;
+    color: var(--dim); font-size: 12px; letter-spacing: 1px;
+  }
+
+  .session-item, .memory-item {
+    background: var(--bg-deep); border: 1px solid var(--border);
+    border-radius: 3px; padding: 14px 16px;
+    margin-bottom: 8px;
+    transition: border-color 0.15s;
+  }
+  .session-item:hover, .memory-item:hover {
+    border-color: var(--border2);
+  }
+  .session-head, .memory-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px; margin-bottom: 6px;
+  }
+  .session-date, .memory-cat {
+    font-size: 10px; color: var(--dim); letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .session-meta, .memory-meta {
+    font-size: 10px; color: var(--ghost); letter-spacing: 0.5px;
+  }
+  .session-title-input, .memory-cat-input {
+    background: transparent; border: none; color: var(--amber);
+    font-family: var(--font); font-size: 12px; letter-spacing: 0.5px;
+    outline: none; flex: 1; padding: 2px 0;
+    border-bottom: 1px dashed transparent;
+  }
+  .session-title-input:hover, .memory-cat-input:hover { border-bottom-color: var(--border2); }
+  .session-title-input:focus, .memory-cat-input:focus { border-bottom-color: var(--amber); }
+
+  .session-preview {
+    font-size: 12px; color: var(--muted); line-height: 1.6;
+    margin: 8px 0 10px;
+    max-height: 60px; overflow: hidden;
+    font-family: var(--font);
+    white-space: pre-wrap;
+  }
+  .session-preview .ghost {
+    color: var(--ghost); text-decoration: line-through;
+  }
+  .session-preview.expanded {
+    max-height: none;
+  }
+
+  .item-actions {
+    display: flex; gap: 6px; margin-top: 10px;
+  }
+  .btn-mini {
+    font-size: 10px; letter-spacing: 1px; padding: 4px 10px;
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 3px; color: var(--dim); cursor: pointer;
+    font-family: var(--font);
+  }
+  .btn-mini:hover { color: var(--muted); border-color: var(--border2); }
+  .btn-mini.danger:hover { color: var(--red); border-color: var(--ghost); }
+
+  /* ── MEMORY TAB ─────────────────────────────────────────── */
+  .memory-content {
+    width: 100%; background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: 3px; padding: 12px; color: var(--text);
+    font-family: var(--font); font-size: 13px; line-height: 1.7;
+    outline: none; resize: vertical; min-height: 60px;
+    margin-top: 8px;
+  }
+  .memory-content:focus { border-color: var(--border2); }
+
+  .btn-add {
+    width: 100%; padding: 14px;
+    background: var(--bg-deep); border: 1px dashed var(--border2);
+    border-radius: 3px; color: var(--muted);
+    font-family: var(--font); font-size: 12px; letter-spacing: 2px;
+    cursor: pointer; margin-bottom: 12px;
+  }
+  .btn-add:hover { color: var(--amber); border-color: var(--amber); }
+
+  /* ── SETTINGS TAB ─────────────────────────────────────────── */
+  .settings-group {
+    background: var(--bg-deep); border: 1px solid var(--border);
+    border-radius: 4px; padding: 16px; margin-bottom: 12px;
+  }
+  .settings-label {
+    font-size: 10px; color: var(--dim); letter-spacing: 2px;
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .settings-hint {
+    font-size: 11px; color: var(--dim); margin-top: 6px; line-height: 1.6;
+  }
+  .settings-row {
+    display: flex; gap: 8px; align-items: center;
+  }
+  .settings-input {
+    flex: 1; background: var(--bg-panel); border: 1px solid var(--border2);
+    border-radius: 3px; padding: 10px 12px;
+    color: var(--amber); font-family: var(--font);
+    font-size: 12px; letter-spacing: 1px; outline: none;
+  }
+  .settings-input:focus { border-color: var(--amber); }
+  .danger-zone {
+    border-color: #3d2020 !important;
+  }
+  .danger-zone .settings-label { color: var(--red); }
+
+  /* ── TOAST ─────────────────────────────────────────── */
+  .toast {
+    position: fixed; bottom: 32px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--border); color: var(--amber);
+    padding: 12px 28px; border-radius: 4px;
+    font-size: 11px; letter-spacing: 0.5px;
+    border: 1px solid var(--border2);
+    z-index: 9999; white-space: nowrap; pointer-events: none;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .toast.show { opacity: 1; }
+  .toast.err { color: var(--red); border-color: var(--ghost); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border2); }
+</style>
+</head>
+<body>
+
+<!-- ════════════ LOCK SCREEN ════════════ -->
+<div id="lock-screen">
+  <div class="lock-box">
+    <div class="lock-logo">Thinking Editor</div>
+    <div class="lock-version">v0.1 · encrypted</div>
+
+    <div id="lock-setup" class="hidden">
+      <div class="lock-title">Set a passphrase</div>
+      <input id="lock-pass-1" type="password" class="lock-input" placeholder="passphrase" autocomplete="new-password" />
+      <input id="lock-pass-2" type="password" class="lock-input" placeholder="confirm" autocomplete="new-password" />
+      <button id="btn-setup" class="lock-btn">Create</button>
+      <div class="lock-hint">
+        This passphrase encrypts every session, memory entry, and API key on this device.<br>
+        <strong style="color:var(--red);">If you forget it, your data is unrecoverable.</strong>
+      </div>
+      <div class="lock-err" id="setup-err"></div>
+    </div>
+
+    <div id="lock-unlock" class="hidden">
+      <div class="lock-title">Unlock</div>
+      <input id="lock-pass" type="password" class="lock-input" placeholder="passphrase" autocomplete="current-password" autofocus />
+      <button id="btn-unlock" class="lock-btn">Unlock</button>
+      <div class="lock-err" id="unlock-err"></div>
+      <div class="lock-nuke" id="btn-nuke">reset everything (destroys all data)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ APP ════════════ -->
+<div id="app" class="hidden">
+  <header>
+    <div class="brand">Thinking Editor <span class="v">v0.1</span></div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="editor">Editor</button>
+      <button class="tab" data-tab="sessions">Sessions</button>
+      <button class="tab" data-tab="memory">Memory</button>
+      <button class="tab" data-tab="settings">Settings</button>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- ─── EDITOR TAB ─── -->
+    <section class="tab-panel active" id="tab-editor">
+      <div class="hint">
+        <kbd>Ctrl+Enter</kbd>
+        <span>generate</span>
+        <span class="sep">·</span>
+        <span>type &amp; speak freely</span>
+        <span class="sep">·</span>
+        <span>delete freely</span>
+      </div>
+
+      <textarea id="main-textarea"
+        placeholder="type here... or hit ● rec to speak at cursor... delete freely... Ctrl+Enter when ready."
+        spellcheck="true"
+        autofocus></textarea>
+
+      <div class="status-bar">
+        <span class="ghost-count" id="ghost-count"></span>
+        <span class="voice-count" id="voice-count"></span>
+        <span class="spacer"></span>
+        <span class="draft-state" id="draft-state"></span>
+      </div>
+
+      <div class="voice-strip">
+        <button id="btn-rec" class="btn-rec" disabled>● rec</button>
+        <div class="thresh-row">
+          <span class="thresh-label">gap</span>
+          <input type="range" id="thresh" min="50" max="2000" step="50" value="300" />
+          <span class="thresh-val" id="thresh-val">300ms</span>
+        </div>
+        <span style="font-size:10px;color:var(--dim);margin-left:auto;">
+          <span id="voice-status">key needed in Settings</span>
+        </span>
+      </div>
+      <div id="voice-err" class="voice-err hidden"></div>
+
+      <div class="controls">
+        <button id="btn-generate" class="btn-primary">⟶ Generate for Bertrand</button>
+        <button id="btn-clear" class="btn">Clear</button>
+        <div class="debug-toggle" id="debug-toggle">
+          <div class="dot" id="debug-dot"></div>
+          <span>debug</span>
+        </div>
+      </div>
+
+      <div class="output-section hidden" id="output-section">
+        <div class="output-label">
+          <span>output for Bertrand — click to select all, then Ctrl+C</span>
+          <button class="btn-mini" id="btn-copy-output">copy</button>
+        </div>
+        <textarea id="output-ta" class="output-ta" readonly></textarea>
+      </div>
+    </section>
+
+    <!-- ─── SESSIONS TAB ─── -->
+    <section class="tab-panel" id="tab-sessions">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Sessions</div>
+          <div class="panel-sub" id="sessions-count">0 sessions</div>
+        </div>
+      </div>
+      <input id="sessions-search" class="search-bar" placeholder="search sessions..." />
+      <div id="sessions-list"></div>
+    </section>
+
+    <!-- ─── MEMORY TAB ─── -->
+    <section class="tab-panel" id="tab-memory">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Memory</div>
+          <div class="panel-sub" id="memory-count">0 entries</div>
+        </div>
+      </div>
+      <input id="memory-search" class="search-bar" placeholder="search memory..." />
+      <button class="btn-add" id="btn-add-memory">+ add entry</button>
+      <div id="memory-list"></div>
+    </section>
+
+    <!-- ─── SETTINGS TAB ─── -->
+    <section class="tab-panel" id="tab-settings">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Settings</div>
+          <div class="panel-sub">encrypted · stored locally</div>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-label">OpenAI API Key (for voice)</div>
+        <div class="settings-row">
+          <input id="set-api-key" type="password" class="settings-input" placeholder="sk-..." autocomplete="off" />
+          <button id="btn-save-key" class="btn">Save</button>
+        </div>
+        <div class="settings-hint">Used only for Whisper transcription. Encrypted at rest with your passphrase.</div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-label">Silence Threshold Default</div>
+        <div class="settings-row">
+          <input type="range" id="set-thresh" min="50" max="2000" step="50" value="300" style="flex:1;" />
+          <span id="set-thresh-val" style="color:var(--amber);font-size:12px;min-width:50px;text-align:right;">300ms</span>
+        </div>
+        <div class="settings-hint">Gaps shorter than this aren't shown as silence markers.</div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-label">Backup</div>
+        <div class="settings-row">
+          <button id="btn-export" class="btn">Export encrypted backup</button>
+          <button id="btn-import" class="btn">Import backup</button>
+          <input id="import-file" type="file" accept=".json,.tebak" class="hidden" />
+        </div>
+        <div class="settings-hint">Exports all sessions, memory, and settings as a file encrypted with your current passphrase.</div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-label">Session</div>
+        <div class="settings-row">
+          <button id="btn-lock" class="btn">Lock app</button>
+          <button id="btn-change-pass" class="btn">Change passphrase</button>
+        </div>
+      </div>
+
+      <div class="settings-group danger-zone">
+        <div class="settings-label">Danger zone</div>
+        <div class="settings-row">
+          <button id="btn-wipe" class="btn" style="color:var(--red);">Wipe all data</button>
+        </div>
+        <div class="settings-hint">Permanent. Deletes every session, memory entry, and your passphrase itself.</div>
+      </div>
+
+      <div style="text-align:center;color:var(--dim);font-size:10px;margin-top:30px;letter-spacing:1px;">
+        v0.1 · single-file · offline · <span id="storage-stat"></span>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+// ════════════════════════════════════════════════════════════════════════════
+// CRYPTO LAYER — WebCrypto, AES-GCM with PBKDF2-derived key
+// ════════════════════════════════════════════════════════════════════════════
+const PBKDF2_ITER = 600000;
+const KEY_LEN_BITS = 256;
+const SALT_LEN = 16;
+const IV_LEN = 12;
+const CANARY_TEXT = "thinking-editor-canary-v1";
+
+let cryptoKey = null; // in-memory only; cleared on lock/reload
+
+function toB64(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+function fromB64(s) {
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function deriveKey(passphrase, salt) {
+  const enc = new TextEncoder();
+  const baseKey = await crypto.subtle.importKey(
+    "raw", enc.encode(passphrase), { name: "PBKDF2" }, false, ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: PBKDF2_ITER, hash: "SHA-256" },
+    baseKey,
+    { name: "AES-GCM", length: KEY_LEN_BITS },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function encryptObj(key, obj) {
+  const iv = crypto.getRandomValues(new Uint8Array(IV_LEN));
+  const plaintext = new TextEncoder().encode(JSON.stringify(obj));
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plaintext);
+  return { iv: toB64(iv), ct: toB64(new Uint8Array(ct)) };
+}
+
+async function decryptObj(key, wrapped) {
+  const iv = fromB64(wrapped.iv);
+  const ct = fromB64(wrapped.ct);
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// LOCK / UNLOCK FLOW
+// ════════════════════════════════════════════════════════════════════════════
+const LS_SALT = "te.salt";
+const LS_CANARY = "te.canary";
+const LS_ITER  = "te.iter";
+
+function hasSetup() { return !!localStorage.getItem(LS_SALT); }
+
+async function setupPassphrase(passphrase) {
+  const salt = crypto.getRandomValues(new Uint8Array(SALT_LEN));
+  const key = await deriveKey(passphrase, salt);
+  const canary = await encryptObj(key, { m: CANARY_TEXT, t: Date.now() });
+  localStorage.setItem(LS_SALT, toB64(salt));
+  localStorage.setItem(LS_CANARY, JSON.stringify(canary));
+  localStorage.setItem(LS_ITER, String(PBKDF2_ITER));
+  cryptoKey = key;
+}
+
+async function unlockWithPassphrase(passphrase) {
+  const salt = fromB64(localStorage.getItem(LS_SALT));
+  const canary = JSON.parse(localStorage.getItem(LS_CANARY));
+  const key = await deriveKey(passphrase, salt);
+  const decoded = await decryptObj(key, canary); // throws if wrong
+  if (decoded.m !== CANARY_TEXT) throw new Error("canary mismatch");
+  cryptoKey = key;
+}
+
+function lockApp() {
+  cryptoKey = null;
+  location.reload();
+}
+
+async function wipeEverything() {
+  localStorage.removeItem(LS_SALT);
+  localStorage.removeItem(LS_CANARY);
+  localStorage.removeItem(LS_ITER);
+  await new Promise((res, rej) => {
+    const req = indexedDB.deleteDatabase(DB_NAME);
+    req.onsuccess = res; req.onerror = rej; req.onblocked = res;
+  });
+  cryptoKey = null;
+  location.reload();
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// STORAGE LAYER — IndexedDB with transparent encryption
+// ════════════════════════════════════════════════════════════════════════════
+const DB_NAME = "thinking-editor-v1";
+const DB_VERSION = 1;
+const STORES = ["sessions", "memory", "settings", "drafts"];
+
+let dbHandle = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      for (const s of STORES) {
+        if (!db.objectStoreNames.contains(s)) {
+          db.createObjectStore(s, { keyPath: "id" });
+        }
+      }
+    };
+    req.onsuccess = () => { dbHandle = req.result; resolve(dbHandle); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function txStore(storeName, mode = "readonly") {
+  return dbHandle.transaction(storeName, mode).objectStore(storeName);
+}
+
+async function putEncrypted(store, id, payload) {
+  const wrapped = await encryptObj(cryptoKey, payload);
+  return new Promise((res, rej) => {
+    const req = txStore(store, "readwrite").put({ id, ...wrapped });
+    req.onsuccess = () => res(); req.onerror = () => rej(req.error);
+  });
+}
+
+async function getEncrypted(store, id) {
+  return new Promise((res, rej) => {
+    const req = txStore(store).get(id);
+    req.onsuccess = async () => {
+      if (!req.result) return res(null);
+      try { res(await decryptObj(cryptoKey, req.result)); }
+      catch (e) { rej(e); }
+    };
+    req.onerror = () => rej(req.error);
+  });
+}
+
+async function getAllEncrypted(store) {
+  return new Promise((res, rej) => {
+    const req = txStore(store).getAll();
+    req.onsuccess = async () => {
+      const items = [];
+      for (const row of req.result) {
+        try {
+          const obj = await decryptObj(cryptoKey, row);
+          obj._id = row.id;
+          items.push(obj);
+        } catch (e) { /* corrupted record; skip */ }
+      }
+      res(items);
+    };
+    req.onerror = () => rej(req.error);
+  });
+}
+
+async function deleteRecord(store, id) {
+  return new Promise((res, rej) => {
+    const req = txStore(store, "readwrite").delete(id);
+    req.onsuccess = () => res(); req.onerror = () => rej(req.error);
+  });
+}
+
+async function clearStore(store) {
+  return new Promise((res, rej) => {
+    const req = txStore(store, "readwrite").clear();
+    req.onsuccess = () => res(); req.onerror = () => rej(req.error);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// EDITOR ENGINE — ported from v5.0
+// ════════════════════════════════════════════════════════════════════════════
+const VERSION = "v0.1";
+const EDITOR_CORE_VERSION = "5.0"; // the diff-edit engine version
+
+let fullDoc = [];       // array of { char, deleted }
+let prevValue = "";
+let deletionCount = 0;
+let voiceInserts = 0;
+let debugMode = false;
+
+function visibleToFullIndex(doc, visiblePos) {
+  let visible = 0;
+  for (let i = 0; i < doc.length; i++) {
+    if (!doc[i].deleted) {
+      if (visible === visiblePos) return i;
+      visible++;
+    }
+  }
+  return doc.length;
+}
+
+function generateOutput(doc, debug, voiceInserts) {
+  let result = "";
+  let inDeleted = false;
+  let ghostCount = 0;
+  let visibleCount = 0;
+  for (const entry of doc) {
+    if (entry.deleted) {
+      ghostCount++;
+      if (!inDeleted) { result += "~~"; inDeleted = true; }
+      result += entry.char;
+    } else {
+      visibleCount++;
+      if (inDeleted) { result += "~~"; inDeleted = false; }
+      result += entry.char;
+    }
+  }
+  if (inDeleted) result += "~~";
+  if (debug) {
+    const parts = [
+      `[editor ${VERSION} · core ${EDITOR_CORE_VERSION}]`,
+      `[ghosts: ${ghostCount}]`,
+      `[visible: ${visibleCount}]`,
+      `[total: ${ghostCount + visibleCount}]`,
+    ];
+    if (voiceInserts > 0) parts.push(`[voice: ${voiceInserts}]`);
+    result = parts.join(" ") + "\n" + result;
+  }
+  return { text: result, ghostCount, visibleCount };
+}
+
+function countDeletions(doc) {
+  let c = 0; for (const e of doc) if (e.deleted) c++; return c;
+}
+
+function diffEdit(oldValue, newValue, cursor, doc) {
+  if (newValue.length < oldValue.length) {
+    const deletedLen = oldValue.length - newValue.length;
+    const fullStart = visibleToFullIndex(doc, cursor);
+    let marked = 0, i = fullStart;
+    while (marked < deletedLen && i < doc.length) {
+      if (!doc[i].deleted) { doc[i].deleted = true; marked++; }
+      i++;
+    }
+  } else if (newValue.length > oldValue.length) {
+    const insertedLen = newValue.length - oldValue.length;
+    const insertStart = cursor - insertedLen;
+    const insertedText = newValue.substring(insertStart, cursor);
+    const fullPos = visibleToFullIndex(doc, insertStart);
+    const newChars = insertedText.split("").map(c => ({ char: c, deleted: false }));
+    doc.splice(fullPos, 0, ...newChars);
+  } else {
+    let pre = 0;
+    const min = Math.min(oldValue.length, newValue.length);
+    while (pre < min && oldValue[pre] === newValue[pre]) pre++;
+    let suf = 0;
+    while (suf < (min - pre) && oldValue[oldValue.length - 1 - suf] === newValue[newValue.length - 1 - suf]) suf++;
+    const oldM = oldValue.substring(pre, oldValue.length - suf);
+    const newM = newValue.substring(pre, newValue.length - suf);
+    if (oldM.length > 0) {
+      const fs = visibleToFullIndex(doc, pre);
+      let mk = 0, idx = fs;
+      while (mk < oldM.length && idx < doc.length) {
+        if (!doc[idx].deleted) { doc[idx].deleted = true; mk++; }
+        idx++;
+      }
+      if (newM.length > 0) {
+        doc.splice(idx, 0, ...newM.split("").map(c => ({ char: c, deleted: false })));
+      }
+    } else if (newM.length > 0) {
+      doc.splice(visibleToFullIndex(doc, pre), 0, ...newM.split("").map(c => ({ char: c, deleted: false })));
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// VOICE
+// ════════════════════════════════════════════════════════════════════════════
+let mediaRecorder = null;
+let audioChunks = [];
+let voiceState = "idle"; // idle | recording | transcribing
+let recStart = 0;
+let recTimer = null;
+let insertAt = 0;
+let threshold = 300;
+let savedApiKey = "";
+
+function getSupportedMime() {
+  const types = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
+  for (const t of types) if (MediaRecorder.isTypeSupported(t)) return t;
+  return "";
+}
+function formatGap(ms) {
+  return ms >= 1000 ? `[${(ms / 1000).toFixed(1)}s]` : `[${ms}ms]`;
+}
+function buildTranscriptText(words, thr) {
+  const parts = [];
+  for (let i = 0; i < words.length; i++) {
+    parts.push(words[i].word);
+    if (i < words.length - 1) {
+      const gapMs = Math.round((words[i + 1].start - words[i].end) * 1000);
+      if (gapMs >= thr) parts.push(" " + formatGap(gapMs));
+    }
+  }
+  return parts.join(" ") + " ";
+}
+
+async function toggleRecord() {
+  if (voiceState === "recording") {
+    clearInterval(recTimer);
+    if (mediaRecorder) mediaRecorder.stop();
+    return;
+  }
+  if (!savedApiKey || !savedApiKey.startsWith("sk-")) {
+    showVoiceErr("Add your OpenAI API key in Settings.");
+    return;
+  }
+  const ta = $("main-textarea");
+  insertAt = ta.selectionStart;
+  clearVoiceErr();
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    const mime = getSupportedMime();
+    mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      clearInterval(recTimer);
+      voiceState = "transcribing";
+      updateVoiceUI();
+
+      const mimeUsed = mediaRecorder.mimeType || "audio/webm";
+      const ext = mimeUsed.includes("mp4") ? "mp4" : mimeUsed.includes("ogg") ? "ogg" : "webm";
+      const blob = new Blob(audioChunks, { type: mimeUsed });
+
+      try {
+        const form = new FormData();
+        form.append("file", blob, `recording.${ext}`);
+        form.append("model", "whisper-1");
+        form.append("response_format", "verbose_json");
+        form.append("timestamp_granularities[]", "word");
+        const resp = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${savedApiKey}` },
+          body: form
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err?.error?.message || `HTTP ${resp.status}`);
+        }
+        const data = await resp.json();
+        if (data.words && data.words.length > 0) {
+          insertAtCursor(buildTranscriptText(data.words, threshold));
+        } else if (data.text && data.text.trim()) {
+          insertAtCursor(data.text.trim() + " ");
+        } else {
+          showVoiceErr("No speech detected.");
+        }
+        voiceState = "idle";
+        updateVoiceUI();
+      } catch (err) {
+        voiceState = "idle";
+        updateVoiceUI();
+        showVoiceErr(err.message);
+      }
+    };
+    mediaRecorder.start(100);
+    voiceState = "recording";
+    recStart = Date.now();
+    recTimer = setInterval(updateVoiceUI, 500);
+    updateVoiceUI();
+  } catch (err) {
+    showVoiceErr("Mic access denied. " + err.message);
+  }
+}
+
+function insertAtCursor(text) {
+  const ta = $("main-textarea");
+  const oldValue = prevValue;
+  const newValue = oldValue.slice(0, insertAt) + text + oldValue.slice(insertAt);
+  const newCursor = insertAt + text.length;
+  diffEdit(oldValue, newValue, newCursor, fullDoc);
+  prevValue = newValue;
+  ta.value = newValue;
+  ta.setSelectionRange(newCursor, newCursor);
+  ta.focus();
+  voiceInserts++;
+  deletionCount = countDeletions(fullDoc);
+  updateEditorStatus();
+  scheduleDraftSave();
+}
+
+function updateVoiceUI() {
+  const btn = $("btn-rec");
+  const status = $("voice-status");
+  const hasKey = savedApiKey && savedApiKey.startsWith("sk-");
+  if (voiceState === "recording") {
+    const secs = Math.floor((Date.now() - recStart) / 1000);
+    const mm = String(Math.floor(secs / 60)).padStart(2, "0");
+    const ss = String(secs % 60).padStart(2, "0");
+    btn.textContent = `■ ${mm}:${ss}`;
+    btn.classList.add("recording");
+    btn.disabled = false;
+    status.textContent = "recording...";
+  } else if (voiceState === "transcribing") {
+    btn.textContent = "...";
+    btn.classList.remove("recording");
+    btn.disabled = true;
+    status.textContent = "transcribing...";
+  } else {
+    btn.textContent = "● rec";
+    btn.classList.remove("recording");
+    btn.disabled = !hasKey;
+    status.textContent = hasKey ? "voice ready" : "key needed in Settings";
+  }
+}
+
+function showVoiceErr(msg) {
+  const el = $("voice-err");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+function clearVoiceErr() {
+  const el = $("voice-err");
+  el.textContent = "";
+  el.classList.add("hidden");
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// EDITOR UI
+// ════════════════════════════════════════════════════════════════════════════
+function updateEditorStatus() {
+  $("ghost-count").textContent = deletionCount > 0
+    ? `${deletionCount} ghost${deletionCount !== 1 ? "s" : ""}` : "";
+  $("voice-count").textContent = voiceInserts > 0
+    ? `${deletionCount > 0 ? "  ·  " : ""}${voiceInserts} voice` : "";
+}
+
+function handleEditorInput(e) {
+  const newValue = e.target.value;
+  const oldValue = prevValue;
+  const cursor = e.target.selectionStart;
+  if (newValue === oldValue) return;
+  diffEdit(oldValue, newValue, cursor, fullDoc);
+  prevValue = newValue;
+  deletionCount = countDeletions(fullDoc);
+  updateEditorStatus();
+  scheduleDraftSave();
+}
+
+async function doGenerate() {
+  const out = generateOutput(fullDoc, debugMode, voiceInserts);
+  if (!out.text.trim()) return;
+  $("output-ta").value = out.text;
+  $("output-section").classList.remove("hidden");
+  setTimeout(() => {
+    const ta = $("output-ta");
+    ta.focus(); ta.select();
+  }, 50);
+  toast("output ready — saved to sessions");
+
+  // save session
+  try {
+    await saveSession(out.text, prevValue, out.ghostCount, voiceInserts);
+  } catch (e) { toast("save failed: " + e.message, true); }
+}
+
+function handleEditorKeyDown(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+    e.preventDefault();
+    doGenerate();
+  }
+}
+
+function clearEditor() {
+  fullDoc = [];
+  prevValue = "";
+  deletionCount = 0;
+  voiceInserts = 0;
+  $("main-textarea").value = "";
+  $("output-ta").value = "";
+  $("output-section").classList.add("hidden");
+  updateEditorStatus();
+  $("draft-state").textContent = "";
+  deleteDraft();
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// DRAFT PERSISTENCE (auto-save current editor state)
+// ════════════════════════════════════════════════════════════════════════════
+let draftTimer = null;
+function scheduleDraftSave() {
+  $("draft-state").textContent = "•";
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(saveDraft, 2500);
+}
+
+async function saveDraft() {
+  if (!prevValue && fullDoc.length === 0) return;
+  try {
+    await putEncrypted("drafts", "current", {
+      fullDoc, prevValue, voiceInserts,
+      updated: new Date().toISOString()
+    });
+    $("draft-state").textContent = "saved";
+  } catch (e) {
+    $("draft-state").textContent = "save failed";
+  }
+}
+
+async function deleteDraft() {
+  try { await deleteRecord("drafts", "current"); } catch {}
+  $("draft-state").textContent = "";
+}
+
+async function restoreDraft() {
+  try {
+    const d = await getEncrypted("drafts", "current");
+    if (d && d.prevValue) {
+      fullDoc = d.fullDoc || [];
+      prevValue = d.prevValue || "";
+      voiceInserts = d.voiceInserts || 0;
+      deletionCount = countDeletions(fullDoc);
+      $("main-textarea").value = prevValue;
+      updateEditorStatus();
+      $("draft-state").textContent = "draft restored";
+      setTimeout(() => { if ($("draft-state").textContent === "draft restored") $("draft-state").textContent = ""; }, 2500);
+    }
+  } catch {}
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SESSIONS
+// ════════════════════════════════════════════════════════════════════════════
+function uuid() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+}
+
+async function saveSession(rawText, plainText, ghostCount, voiceCount) {
+  const now = new Date().toISOString();
+  const id = uuid();
+  await putEncrypted("sessions", id, {
+    id, title: "", rawText, plainText, ghostCount, voiceCount,
+    note: "", created: now, updated: now
+  });
+  await refreshSessionsCount();
+}
+
+async function refreshSessionsCount() {
+  const sessions = await getAllEncrypted("sessions");
+  $("sessions-count").textContent = `${sessions.length} session${sessions.length !== 1 ? "s" : ""}`;
+}
+
+function renderGhostPreview(raw) {
+  // convert ~~ghost~~ runs into spans
+  const frag = document.createElement("span");
+  const parts = raw.split(/(~~.*?~~)/g);
+  for (const p of parts) {
+    if (p.startsWith("~~") && p.endsWith("~~")) {
+      const g = document.createElement("span");
+      g.className = "ghost";
+      g.textContent = p.slice(2, -2);
+      frag.appendChild(g);
+    } else {
+      frag.appendChild(document.createTextNode(p));
+    }
+  }
+  return frag;
+}
+
+async function renderSessions() {
+  const q = $("sessions-search").value.trim().toLowerCase();
+  const list = $("sessions-list");
+  list.innerHTML = "";
+  let sessions = await getAllEncrypted("sessions");
+  sessions.sort((a, b) => (b.created || "").localeCompare(a.created || ""));
+  if (q) sessions = sessions.filter(s =>
+    (s.rawText || "").toLowerCase().includes(q) ||
+    (s.title || "").toLowerCase().includes(q) ||
+    (s.note || "").toLowerCase().includes(q));
+
+  $("sessions-count").textContent = `${sessions.length} session${sessions.length !== 1 ? "s" : ""}`;
+  if (sessions.length === 0) {
+    list.innerHTML = '<div class="list-empty">no sessions yet — press Ctrl+Enter in the editor to save one</div>';
+    return;
+  }
+
+  for (const s of sessions) {
+    const div = document.createElement("div");
+    div.className = "session-item";
+    div.innerHTML = `
+      <div class="session-head">
+        <input class="session-title-input" placeholder="untitled — click to name" value="${escapeAttr(s.title || "")}" />
+        <span class="session-date"></span>
+      </div>
+      <div class="session-meta">
+        ${s.ghostCount || 0} ghosts · ${s.voiceCount || 0} voice · ${(s.rawText || "").length} chars
+      </div>
+      <div class="session-preview"></div>
+      <div class="item-actions">
+        <button class="btn-mini" data-a="expand">expand</button>
+        <button class="btn-mini" data-a="copy">copy</button>
+        <button class="btn-mini danger" data-a="delete">delete</button>
+      </div>
+    `;
+    div.querySelector(".session-date").textContent = formatDate(s.created);
+    div.querySelector(".session-preview").appendChild(renderGhostPreview(s.rawText || ""));
+
+    const titleInput = div.querySelector(".session-title-input");
+    titleInput.addEventListener("change", async () => {
+      s.title = titleInput.value;
+      s.updated = new Date().toISOString();
+      await putEncrypted("sessions", s.id, s);
+    });
+
+    div.querySelector('[data-a="expand"]').addEventListener("click", (e) => {
+      const p = div.querySelector(".session-preview");
+      p.classList.toggle("expanded");
+      e.currentTarget.textContent = p.classList.contains("expanded") ? "collapse" : "expand";
+    });
+    div.querySelector('[data-a="copy"]').addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(s.rawText || ""); toast("copied"); }
+      catch { toast("copy failed", true); }
+    });
+    div.querySelector('[data-a="delete"]').addEventListener("click", async () => {
+      if (!confirm("Delete this session permanently?")) return;
+      await deleteRecord("sessions", s.id);
+      await renderSessions();
+      toast("session deleted");
+    });
+
+    list.appendChild(div);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// MEMORY
+// ════════════════════════════════════════════════════════════════════════════
+async function refreshMemoryCount() {
+  const mem = await getAllEncrypted("memory");
+  $("memory-count").textContent = `${mem.length} entr${mem.length !== 1 ? "ies" : "y"}`;
+}
+
+async function addMemoryEntry() {
+  const id = uuid();
+  const now = new Date().toISOString();
+  await putEncrypted("memory", id, {
+    id, category: "note", content: "", created: now, updated: now
+  });
+  await renderMemory();
+  // focus the newest one
+  const first = document.querySelector(".memory-item .memory-content");
+  if (first) first.focus();
+}
+
+async function renderMemory() {
+  const q = $("memory-search").value.trim().toLowerCase();
+  const list = $("memory-list");
+  list.innerHTML = "";
+  let entries = await getAllEncrypted("memory");
+  entries.sort((a, b) => (b.updated || "").localeCompare(a.updated || ""));
+  if (q) entries = entries.filter(e =>
+    (e.content || "").toLowerCase().includes(q) ||
+    (e.category || "").toLowerCase().includes(q));
+
+  $("memory-count").textContent = `${entries.length} entr${entries.length !== 1 ? "ies" : "y"}`;
+
+  if (entries.length === 0) {
+    list.innerHTML = '<div class="list-empty">no entries yet</div>';
+    return;
+  }
+
+  for (const e of entries) {
+    const div = document.createElement("div");
+    div.className = "memory-item";
+    div.innerHTML = `
+      <div class="memory-head">
+        <input class="memory-cat-input" placeholder="category" value="${escapeAttr(e.category || "")}" />
+        <span class="memory-meta"></span>
+      </div>
+      <textarea class="memory-content" placeholder="write something about yourself, a pattern, a preference, a project..."></textarea>
+      <div class="item-actions">
+        <button class="btn-mini" data-a="copy">copy</button>
+        <button class="btn-mini danger" data-a="delete">delete</button>
+      </div>
+    `;
+    div.querySelector(".memory-meta").textContent = `updated ${formatDate(e.updated)}`;
+    const catInput = div.querySelector(".memory-cat-input");
+    const contentTA = div.querySelector(".memory-content");
+    contentTA.value = e.content || "";
+
+    let saveTimer;
+    const persist = async () => {
+      e.category = catInput.value.trim() || "note";
+      e.content = contentTA.value;
+      e.updated = new Date().toISOString();
+      await putEncrypted("memory", e.id, e);
+      div.querySelector(".memory-meta").textContent = `updated just now`;
+    };
+    const scheduleSave = () => { clearTimeout(saveTimer); saveTimer = setTimeout(persist, 800); };
+    catInput.addEventListener("input", scheduleSave);
+    contentTA.addEventListener("input", scheduleSave);
+    catInput.addEventListener("blur", persist);
+    contentTA.addEventListener("blur", persist);
+
+    div.querySelector('[data-a="copy"]').addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(`[${e.category}]\n${e.content}`);
+        toast("copied");
+      } catch { toast("copy failed", true); }
+    });
+    div.querySelector('[data-a="delete"]').addEventListener("click", async () => {
+      if (!confirm("Delete this memory entry?")) return;
+      await deleteRecord("memory", e.id);
+      await renderMemory();
+      toast("entry deleted");
+    });
+
+    list.appendChild(div);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SETTINGS
+// ════════════════════════════════════════════════════════════════════════════
+async function loadSettings() {
+  try {
+    const s = await getEncrypted("settings", "main");
+    if (s) {
+      savedApiKey = s.apiKey || "";
+      threshold = s.threshold || 300;
+      debugMode = !!s.debug;
+    }
+  } catch {}
+  // reflect into UI
+  $("set-api-key").value = savedApiKey;
+  $("set-thresh").value = threshold;
+  $("set-thresh-val").textContent = threshold + "ms";
+  $("thresh").value = threshold;
+  $("thresh-val").textContent = threshold + "ms";
+  $("debug-dot").classList.toggle("on", debugMode);
+  updateVoiceUI();
+}
+
+async function saveSettings() {
+  await putEncrypted("settings", "main", {
+    apiKey: savedApiKey, threshold, debug: debugMode,
+    updated: new Date().toISOString()
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// EXPORT / IMPORT
+// ════════════════════════════════════════════════════════════════════════════
+async function exportBackup() {
+  const sessions = await getAllEncrypted("sessions");
+  const memory = await getAllEncrypted("memory");
+  const settings = await getEncrypted("settings", "main");
+  const bundle = {
+    version: 1,
+    app: "thinking-editor",
+    exported: new Date().toISOString(),
+    data: { sessions, memory, settings }
+  };
+  // encrypt the bundle with current key
+  const wrapped = await encryptObj(cryptoKey, bundle);
+  const blob = new Blob([JSON.stringify({
+    kind: "thinking-editor-backup",
+    v: 1,
+    ...wrapped
+  }, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `thinking-editor-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast("backup exported");
+}
+
+async function importBackup(file) {
+  try {
+    const text = await file.text();
+    const wrapped = JSON.parse(text);
+    if (wrapped.kind !== "thinking-editor-backup") throw new Error("not a backup file");
+    const bundle = await decryptObj(cryptoKey, { iv: wrapped.iv, ct: wrapped.ct });
+    // sessions
+    for (const s of (bundle.data.sessions || [])) {
+      const id = s.id || s._id || uuid();
+      delete s._id;
+      await putEncrypted("sessions", id, { ...s, id });
+    }
+    for (const m of (bundle.data.memory || [])) {
+      const id = m.id || m._id || uuid();
+      delete m._id;
+      await putEncrypted("memory", id, { ...m, id });
+    }
+    if (bundle.data.settings) {
+      await putEncrypted("settings", "main", bundle.data.settings);
+      await loadSettings();
+    }
+    await renderSessions();
+    await renderMemory();
+    toast("backup imported");
+  } catch (e) {
+    toast("import failed: " + e.message, true);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════════════════════════════════════════
+function $(id) { return document.getElementById(id); }
+
+function escapeAttr(s) {
+  return String(s).replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function formatDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  if (sameDay) {
+    return `today ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  }
+  return d.toISOString().slice(0, 16).replace("T", " ");
+}
+
+let toastTimer = null;
+function toast(msg, isErr = false) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.toggle("err", !!isErr);
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2500);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// WIRING
+// ════════════════════════════════════════════════════════════════════════════
+function switchTab(name) {
+  for (const btn of document.querySelectorAll(".tab")) {
+    btn.classList.toggle("active", btn.dataset.tab === name);
+  }
+  for (const panel of document.querySelectorAll(".tab-panel")) {
+    panel.classList.toggle("active", panel.id === `tab-${name}`);
+  }
+  if (name === "sessions") renderSessions();
+  if (name === "memory") renderMemory();
+}
+
+function wireApp() {
+  // tabs
+  for (const btn of document.querySelectorAll(".tab")) {
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  }
+
+  // editor
+  const ta = $("main-textarea");
+  ta.addEventListener("input", handleEditorInput);
+  ta.addEventListener("keydown", handleEditorKeyDown);
+  $("btn-generate").addEventListener("click", doGenerate);
+  $("btn-clear").addEventListener("click", clearEditor);
+  $("debug-toggle").addEventListener("click", async () => {
+    debugMode = !debugMode;
+    $("debug-dot").classList.toggle("on", debugMode);
+    await saveSettings();
+  });
+
+  // voice
+  $("btn-rec").addEventListener("click", toggleRecord);
+  $("thresh").addEventListener("input", async (e) => {
+    threshold = Number(e.target.value);
+    $("thresh-val").textContent = threshold + "ms";
+    $("set-thresh").value = threshold;
+    $("set-thresh-val").textContent = threshold + "ms";
+    await saveSettings();
+  });
+
+  // copy output
+  $("btn-copy-output").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText($("output-ta").value); toast("copied"); }
+    catch { toast("copy failed", true); }
+  });
+  $("output-ta").addEventListener("click", (e) => e.target.select());
+
+  // sessions search
+  $("sessions-search").addEventListener("input", renderSessions);
+
+  // memory
+  $("btn-add-memory").addEventListener("click", addMemoryEntry);
+  $("memory-search").addEventListener("input", renderMemory);
+
+  // settings
+  $("btn-save-key").addEventListener("click", async () => {
+    savedApiKey = $("set-api-key").value.trim();
+    await saveSettings();
+    updateVoiceUI();
+    toast(savedApiKey ? "key saved" : "key cleared");
+  });
+  $("set-thresh").addEventListener("input", async (e) => {
+    threshold = Number(e.target.value);
+    $("set-thresh-val").textContent = threshold + "ms";
+    $("thresh").value = threshold;
+    $("thresh-val").textContent = threshold + "ms";
+    await saveSettings();
+  });
+  $("btn-export").addEventListener("click", exportBackup);
+  $("btn-import").addEventListener("click", () => $("import-file").click());
+  $("import-file").addEventListener("change", (e) => {
+    const f = e.target.files[0];
+    if (f) importBackup(f);
+    e.target.value = "";
+  });
+  $("btn-lock").addEventListener("click", lockApp);
+  $("btn-change-pass").addEventListener("click", changePassphrase);
+  $("btn-wipe").addEventListener("click", async () => {
+    if (!confirm("This will permanently delete all sessions, memory, and your passphrase. Continue?")) return;
+    if (!confirm("Last chance — are you sure?")) return;
+    await wipeEverything();
+  });
+
+  // storage stat (rough)
+  updateStorageStat();
+}
+
+async function changePassphrase() {
+  const oldPass = prompt("Current passphrase:");
+  if (!oldPass) return;
+  try {
+    const salt = fromB64(localStorage.getItem(LS_SALT));
+    const canary = JSON.parse(localStorage.getItem(LS_CANARY));
+    const oldKey = await deriveKey(oldPass, salt);
+    const decoded = await decryptObj(oldKey, canary);
+    if (decoded.m !== CANARY_TEXT) throw new Error("wrong passphrase");
+  } catch {
+    toast("wrong current passphrase", true);
+    return;
+  }
+  const newPass = prompt("New passphrase:");
+  if (!newPass || newPass.length < 4) { toast("passphrase too short", true); return; }
+  const confirm2 = prompt("Confirm new passphrase:");
+  if (confirm2 !== newPass) { toast("passphrases don't match", true); return; }
+
+  // decrypt everything with current key, then re-encrypt with new key
+  toast("re-encrypting...");
+  const sessions = await getAllEncrypted("sessions");
+  const memory   = await getAllEncrypted("memory");
+  const settings = await getEncrypted("settings", "main");
+  const draft    = await getEncrypted("drafts", "current");
+
+  const newSalt = crypto.getRandomValues(new Uint8Array(SALT_LEN));
+  const newKey = await deriveKey(newPass, newSalt);
+  const newCanary = await encryptObj(newKey, { m: CANARY_TEXT, t: Date.now() });
+
+  cryptoKey = newKey;
+  localStorage.setItem(LS_SALT, toB64(newSalt));
+  localStorage.setItem(LS_CANARY, JSON.stringify(newCanary));
+
+  await clearStore("sessions");
+  await clearStore("memory");
+  await clearStore("settings");
+  await clearStore("drafts");
+  for (const s of sessions) { delete s._id; await putEncrypted("sessions", s.id, s); }
+  for (const m of memory)   { delete m._id; await putEncrypted("memory", m.id, m); }
+  if (settings) await putEncrypted("settings", "main", settings);
+  if (draft)    await putEncrypted("drafts", "current", draft);
+
+  toast("passphrase changed");
+}
+
+async function updateStorageStat() {
+  try {
+    const est = await navigator.storage.estimate();
+    if (est && est.usage) {
+      const kb = Math.round(est.usage / 1024);
+      $("storage-stat").textContent = `${kb} KB used`;
+    }
+  } catch {}
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════════════════════════════════════════
+function showLockSetup() {
+  $("lock-setup").classList.remove("hidden");
+  $("lock-unlock").classList.add("hidden");
+  $("lock-pass-1").focus();
+}
+function showLockUnlock() {
+  $("lock-unlock").classList.remove("hidden");
+  $("lock-setup").classList.add("hidden");
+  $("lock-pass").focus();
+}
+
+async function enterApp() {
+  await openDB();
+  await loadSettings();
+  await restoreDraft();
+  await refreshSessionsCount();
+  await refreshMemoryCount();
+  wireApp();
+  $("lock-screen").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  $("main-textarea").focus();
+}
+
+function bootLockScreen() {
+  if (hasSetup()) {
+    showLockUnlock();
+    $("btn-unlock").addEventListener("click", tryUnlock);
+    $("lock-pass").addEventListener("keydown", (e) => { if (e.key === "Enter") tryUnlock(); });
+    $("btn-nuke").addEventListener("click", async () => {
+      if (!confirm("Delete ALL data on this device? This cannot be undone.")) return;
+      if (!confirm("Really? All sessions, memory, settings will be lost forever.")) return;
+      await wipeEverything();
+    });
+  } else {
+    showLockSetup();
+    $("btn-setup").addEventListener("click", trySetup);
+    $("lock-pass-2").addEventListener("keydown", (e) => { if (e.key === "Enter") trySetup(); });
+  }
+}
+
+async function trySetup() {
+  const p1 = $("lock-pass-1").value;
+  const p2 = $("lock-pass-2").value;
+  const err = $("setup-err");
+  err.textContent = "";
+  if (!p1 || p1.length < 4) { err.textContent = "passphrase too short"; return; }
+  if (p1 !== p2) { err.textContent = "passphrases don't match"; return; }
+  $("btn-setup").disabled = true;
+  $("btn-setup").textContent = "creating...";
+  try {
+    await setupPassphrase(p1);
+    await enterApp();
+  } catch (e) {
+    err.textContent = "setup failed: " + e.message;
+    $("btn-setup").disabled = false;
+    $("btn-setup").textContent = "Create";
+  }
+}
+
+async function tryUnlock() {
+  const pass = $("lock-pass").value;
+  const err = $("unlock-err");
+  err.textContent = "";
+  if (!pass) { err.textContent = "enter passphrase"; return; }
+  $("btn-unlock").disabled = true;
+  $("btn-unlock").textContent = "unlocking...";
+  try {
+    await unlockWithPassphrase(pass);
+    await enterApp();
+  } catch (e) {
+    err.textContent = "wrong passphrase";
+    $("btn-unlock").disabled = false;
+    $("btn-unlock").textContent = "Unlock";
+    $("lock-pass").select();
+  }
+}
+
+// ── START ──
+if (!window.crypto || !window.crypto.subtle) {
+  document.body.innerHTML = '<div style="padding:40px;color:#e88080;font-family:monospace;">Your browser does not support WebCrypto. Use a modern browser over HTTPS or file://</div>';
+} else if (!window.indexedDB) {
+  document.body.innerHTML = '<div style="padding:40px;color:#e88080;font-family:monospace;">Your browser does not support IndexedDB.</div>';
+} else {
+  bootLockScreen();
+}
+</script>
+</body>
+</html>
